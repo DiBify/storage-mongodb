@@ -1,0 +1,29 @@
+{
+  "name": "dibify/storage-mongodb",
+  "type": "library",
+  "description": "DiBify MongoDB storage",
+  "keywords": [
+    "db",
+    "database",
+    "orm",
+    "mongodb"
+  ],
+  "authors": [
+    {
+      "name": "Timur Kasumov aka XAKEPEHOK",
+      "role": "Main developer"
+    }
+  ],
+  "license": "BSD-3-Clause",
+  "require": {
+    "php": ">=8.0.0",
+    "ext-mongodb": "^1.15.0",
+    "dibify/dibify": "^0.7.15",
+    "mongodb/mongodb": "^1.15",
+    "xakepehok/array-wildcard-explainer": "^0.1.0",
+    "adbario/php-dot-notation": "^2.2"
+  },
+  "autoload": {
+    "psr-4": {"DiBify\\Storage\\MongoDB\\": "src/"}
+  }
+}
