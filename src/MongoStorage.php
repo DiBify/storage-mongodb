@@ -14,22 +14,27 @@ use MongoDB\Client;
 use MongoDB\Collection;
 use MongoDB\Database;
 use MongoDB\Driver\Cursor;
+use RuntimeException;
 use XAKEPEHOK\ArrayWildcardExplainer\ArrayWildcardExplainer;
 
 abstract class MongoStorage implements StorageInterface
 {
 
+    protected Client $client;
+
+    protected Database $database;
+
     /** @var StorageData[] */
     protected array $data;
 
+    public static bool $logQueries = false;
+
     public static array $queries = [];
 
-    public function __construct(
-        protected Client $client,
-        protected Database $database,
-        protected bool $logs = false
-    )
+    public function __construct(Client $client, Database $database)
     {
+        $this->client = $client;
+        $this->database = $database;
     }
 
     public function findById(string $id): ?StorageData
@@ -46,6 +51,10 @@ abstract class MongoStorage implements StorageInterface
      */
     public function findByIds($ids): array
     {
+        if (empty($ids)) {
+            return [];
+        }
+
         $ids = array_map(fn($id) => (string) $id, $ids);
         if ($this->scope()) {
             $founded = $this->findByFilter(['_id.id' => ['$in' => $ids]]);
@@ -69,11 +78,6 @@ abstract class MongoStorage implements StorageInterface
         });
     }
 
-    public function findAll(): array
-    {
-        return $this->findByFilter([]);
-    }
-
     public function insert(StorageData $data, array $options = []): void
     {
         $document = new Dot($data->body);
@@ -91,7 +95,7 @@ abstract class MongoStorage implements StorageInterface
         $pools = ArrayWildcardExplainer::explainMany($document->all(), $this->pools());
         foreach ($pools as $key) {
             if (($value = $document->get($key)) !== null) {
-                $document->set($key, $value['pool']);
+                $document->set($key, $value['current'] + $value['pool']);
             }
         }
 
@@ -103,16 +107,17 @@ abstract class MongoStorage implements StorageInterface
     {
         $document = new Dot($data->body);
 
-        $this->handleBeforeWrite($document);
-
         $inc = [];
-        $pools = ArrayWildcardExplainer::explainMany($document->all(), $this->pools());
-        foreach ($pools as $key) {
-            if (($value = $document->get($key)) !== null) {
-                $inc[$key] = $value['pool'];
-                $document->delete($key);
+        $this->handleBeforeWrite($document, function (Dot $document) use (&$inc) {
+            $pools = ArrayWildcardExplainer::explainMany($document->all(), $this->pools());
+            foreach ($pools as $key) {
+                if (($value = $document->get($key)) !== null) {
+                    $inc[$key] = $value['pool'];
+                    $document->delete($key);
+                }
             }
-        }
+            return $document;
+        });
 
         if ($this->scope()) {
             $filter = [
@@ -172,11 +177,7 @@ abstract class MongoStorage implements StorageInterface
 
         $this->log('find', $filter, $options);
 
-        if (isset($options['distinct'])) {
-            $cursor = $this->getCollection()->distinct($options['distinct'], $filter, $options);
-        } else {
-            $cursor = $this->getCollection()->find($filter, $options);
-        }
+        $cursor = $this->getCollection()->find($filter, $options);
 
         $cursor->setTypeMap(['root' => 'array', 'document' => 'array', 'array' => 'array']);
 
@@ -242,6 +243,10 @@ abstract class MongoStorage implements StorageInterface
 
         if ($this->scope()) {
             $id = (string) $data['_id']['id'];
+
+            if ($this->scope() !== $data['_id'][$this->scopeKey()]) {
+                throw new RuntimeException("Storage return data for other scope");
+            }
         } else {
             $id = (string) $data['_id'];
         }
@@ -256,20 +261,37 @@ abstract class MongoStorage implements StorageInterface
         foreach ($dates as $key) {
             /** @var UTCDateTime $datetime */
             if (($datetime = $document->get($key)) !== null) {
-                $document->set($key, $datetime->toDateTime()->format('U'));
+                $document->set($key, (int) $datetime->toDateTime()->format('U'));
             }
         }
 
-        $uuids = ArrayWildcardExplainer::explainMany($document->all(), $this->uuids());
+        $uuids = ArrayWildcardExplainer::explainMany($document->all(), array_merge(
+            $this->uuids(),
+            array_keys($this->references())
+        ));
+
         foreach ($uuids as $key) {
             /** @var Binary $uuid */
             if (($uuid = $document->get($key)) !== null) {
-                $uuid = preg_replace(
-                    '~(\w{8})(\w{4})(\w{4})(\w{4})(\w{12})~',
-                    '$1-$2-$3-$4-$5',
-                    bin2hex($uuid->getData())
-                );
-                $document->set($key, $uuid);
+                if ($uuid instanceof Binary) {
+                    $uuid = preg_replace(
+                        '~(\w{8})(\w{4})(\w{4})(\w{4})(\w{12})~',
+                        '$1-$2-$3-$4-$5',
+                        bin2hex($uuid->getData())
+                    );
+                    $document->set($key, $uuid);
+                }
+            }
+        }
+
+        $pools = ArrayWildcardExplainer::explainMany($document->all(), $this->pools());
+        foreach ($pools as $poolKey) {
+            $value = $document->get($poolKey);
+            if (is_scalar($value)) {
+                $document->set($poolKey, [
+                    'current' => $value,
+                    'pool' => 0
+                ]);
             }
         }
 
@@ -290,20 +312,16 @@ abstract class MongoStorage implements StorageInterface
         return new Dot($data);
     }
 
-    protected function handleBeforeWrite(Dot $document): Dot
+    protected function handleBeforeWrite(Dot $document, callable $handler = null): Dot
     {
+        if (is_null($handler)) {
+            $handler = fn($value) => $value;
+        }
+
         $dates = ArrayWildcardExplainer::explainMany($document->all(), $this->dates());
         foreach ($dates as $key) {
             if (($timestamp = $document->get($key)) !== null) {
                 $document->set($key, new UTCDateTime((int) $timestamp * 1000));
-            }
-        }
-
-        $uuids = ArrayWildcardExplainer::explainMany($document->all(), $this->uuids());
-        foreach ($uuids as $key) {
-            if (($uuid = $document->get($key)) !== null) {
-                $uuid = str_replace('-', '', $uuid);
-                $document->set($key, new Binary(hex2bin($uuid), Binary::TYPE_UUID));
             }
         }
 
@@ -314,12 +332,22 @@ abstract class MongoStorage implements StorageInterface
             }
         }
 
+        $uuids = ArrayWildcardExplainer::explainMany($document->all(), $this->uuids());
+        foreach ($uuids as $key) {
+            if (($uuid = $document->get($key)) !== null) {
+                if (preg_match('~^[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}$~i', $uuid)) {
+                    $uuid = str_replace('-', '', $uuid);
+                    $document->set($key, new Binary(hex2bin($uuid), Binary::TYPE_UUID));
+                }
+            }
+        }
+
         $ignore = ArrayWildcardExplainer::explainMany($document->all(), $this->ignore());
         foreach ($ignore as $key) {
             $document->delete($key);
         }
 
-        return $document;
+        return $handler($document);
     }
 
     protected function expandReferences(Dot $document): array
@@ -336,7 +364,7 @@ abstract class MongoStorage implements StorageInterface
 
     protected function log(string $type, array $filter = [], array $options = [])
     {
-        if (!$this->logs) {
+        if (!self::$logQueries) {
             return;
         }
 
