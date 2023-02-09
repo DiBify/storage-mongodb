@@ -385,4 +385,10 @@ abstract class MongoStorage implements StorageInterface
 
     abstract public function getCollection(): Collection;
 
+    public function freeUpMemory(): void
+    {
+        $this->data = [];
+        self::$queries = [];
+    }
+
 }
