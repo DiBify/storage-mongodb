@@ -212,6 +212,11 @@ abstract class MongoStorage implements StorageInterface
         return $cursor;
     }
 
+    protected function defaults(): array
+    {
+        return [];
+    }
+
     protected function dates(): array
     {
         return [];
@@ -257,6 +262,12 @@ abstract class MongoStorage implements StorageInterface
 
     protected function handleAfterFind(Dot $document): Dot
     {
+        foreach ($this->defaults() as $key => $value) {
+            if (!$document->has($key)) {
+                $document->set($key, $value);
+            }
+        }
+
         $dates = ArrayWildcardExplainer::explainMany($document->all(), $this->dates());
         foreach ($dates as $key) {
             /** @var UTCDateTime $datetime */
