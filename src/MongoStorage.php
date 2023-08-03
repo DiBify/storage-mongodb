@@ -156,10 +156,10 @@ abstract class MongoStorage implements StorageInterface
         $this->getCollection()->deleteOne($filter, $options);
     }
 
-    protected function findOneByFilter(array $filter, array $options = []): ?StorageData
+    protected function findOneByFilter(array $filter, array $options = [], bool $withScope = true): ?StorageData
     {
         $options['limit'] = 1;
-        $cursor = $this->findByFilter($filter, $options);
+        $cursor = $this->findByFilter($filter, $options, $withScope);
         $data = current($cursor);
         return $data === false ? null : $data;
     }
@@ -167,11 +167,12 @@ abstract class MongoStorage implements StorageInterface
     /**
      * @param array $filter
      * @param array $options
+     * @param bool $withScope
      * @return StorageData[]
      */
-    protected function findByFilter(array $filter, array $options = []): array
+    protected function findByFilter(array $filter, array $options = [], bool $withScope = true): array
     {
-        if ($this->scope()) {
+        if ($this->scope() && $withScope) {
             $filter = array_merge(["_id.{$this->scopeKey()}" => $this->scope()], $filter);
         }
 
@@ -189,9 +190,9 @@ abstract class MongoStorage implements StorageInterface
         return $result;
     }
 
-    protected function countByCondition(array $filter, array $options = []): int
+    protected function countByCondition(array $filter, array $options = [], bool $withScope = true): int
     {
-        if ($this->scope()) {
+        if ($this->scope() && $withScope) {
             $filter = array_merge(["_id.{$this->scopeKey()}" => $this->scope()], $filter);
         }
 
@@ -199,9 +200,9 @@ abstract class MongoStorage implements StorageInterface
         return $this->getCollection()->countDocuments($filter, $options);
     }
 
-    protected function aggregate(array $pipeline, array $options = []): Cursor
+    protected function aggregate(array $pipeline, array $options = [], bool $withScope = true): Cursor
     {
-        if ($this->scope()) {
+        if ($this->scope() && $withScope) {
             $pipeline[] = ['$match' => ["_id.{$this->scopeKey()}" => $this->scope()]];
             $pipeline = array_reverse($pipeline, false);
         }
