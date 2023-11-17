@@ -172,7 +172,7 @@ abstract class MongoStorage implements StorageInterface
      */
     protected function findByFilter(array $filter, array $options = [], bool $withScope = true): array
     {
-        if ($this->scope() && $withScope) {
+        if ($withScope && $this->scope()) {
             $filter = array_merge(["_id.{$this->scopeKey()}" => $this->scope()], $filter);
         }
 
@@ -192,7 +192,7 @@ abstract class MongoStorage implements StorageInterface
 
     protected function countByCondition(array $filter, array $options = [], bool $withScope = true): int
     {
-        if ($this->scope() && $withScope) {
+        if ($withScope && $this->scope()) {
             $filter = array_merge(["_id.{$this->scopeKey()}" => $this->scope()], $filter);
         }
 
@@ -202,7 +202,7 @@ abstract class MongoStorage implements StorageInterface
 
     protected function aggregate(array $pipeline, array $options = [], bool $withScope = true): Cursor
     {
-        if ($this->scope() && $withScope) {
+        if ($withScope && $this->scope()) {
             $pipeline[] = ['$match' => ["_id.{$this->scopeKey()}" => $this->scope()]];
             $pipeline = array_reverse($pipeline, false);
         }
