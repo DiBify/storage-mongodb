@@ -203,8 +203,10 @@ abstract class MongoStorage implements StorageInterface
     protected function aggregate(array $pipeline, array $options = [], bool $withScope = true): Cursor
     {
         if ($withScope && $this->scope()) {
-            $pipeline[] = ['$match' => ["_id.{$this->scopeKey()}" => $this->scope()]];
-            $pipeline = array_reverse($pipeline, false);
+            $pipeline = [
+                ['$match' => ["_id.{$this->scopeKey()}" => $this->scope()]],
+                ...array_values($pipeline)
+            ];
         }
 
         /** @var Cursor $cursor */
