@@ -3,6 +3,7 @@
  * Date: 11.04.2020
  * @author Timur Kasumov (XAKEPEHOK)
  */
+
 namespace DiBify\Storage\MongoDB;
 
 use Adbar\Dot;
@@ -40,7 +41,9 @@ abstract class MongoStorage implements StorageInterface
     public function findById(string $id): ?StorageData
     {
         if ($this->scope()) {
-            return $this->findOneByFilter(['_id.id' => $id]);
+            return $this->findOneByFilter([
+                '_id' => [$this->scopeKey() => $this->scope(), 'id' => $id],
+            ]);
         }
         return $this->findOneByFilter(['_id' => $id]);
     }
@@ -55,9 +58,13 @@ abstract class MongoStorage implements StorageInterface
             return [];
         }
 
-        $ids = array_map(fn($id) => (string) $id, $ids);
+        $ids = array_map(fn($id) => (string)$id, $ids);
         if ($this->scope()) {
-            $founded = $this->findByFilter(['_id.id' => ['$in' => $ids]]);
+            $founded = $this->findByFilter([
+                '_id' => [
+                    '$in' => array_map(fn(string $id) => [$this->scopeKey() => $this->scope(), 'id' => $id], $ids)
+                ],
+            ]);
         } else {
             $founded = $this->findByFilter(['_id' => ['$in' => $ids]]);
         }
@@ -146,7 +153,7 @@ abstract class MongoStorage implements StorageInterface
     {
         $filter = ['_id' => $id];
         if ($this->scope()) {
-            $filter =[
+            $filter = [
                 "_id.{$this->scopeKey()}" => $this->scope(),
                 '_id.id' => $id,
             ];
@@ -247,16 +254,16 @@ abstract class MongoStorage implements StorageInterface
 
     protected function doc2data($document): StorageData
     {
-        $data = (array) $document;
+        $data = (array)$document;
 
         if ($this->scope()) {
-            $id = (string) $data['_id']['id'];
+            $id = (string)$data['_id']['id'];
 
             if ($this->scope() !== $data['_id'][$this->scopeKey()]) {
                 throw new RuntimeException("Storage return data for other scope");
             }
         } else {
-            $id = (string) $data['_id'];
+            $id = (string)$data['_id'];
         }
 
         unset($data['_id']);
@@ -275,7 +282,7 @@ abstract class MongoStorage implements StorageInterface
         foreach ($dates as $key) {
             /** @var UTCDateTime $datetime */
             if (($datetime = $document->get($key)) !== null) {
-                $document->set($key, (int) $datetime->toDateTime()->format('U'));
+                $document->set($key, (int)$datetime->toDateTime()->format('U'));
             }
         }
 
@@ -335,7 +342,7 @@ abstract class MongoStorage implements StorageInterface
         $dates = ArrayWildcardExplainer::explainMany($document->all(), $this->dates());
         foreach ($dates as $key) {
             if (($timestamp = $document->get($key)) !== null) {
-                $document->set($key, new UTCDateTime((int) $timestamp * 1000));
+                $document->set($key, new UTCDateTime((int)$timestamp * 1000));
             }
         }
 
