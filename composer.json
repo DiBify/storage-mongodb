@@ -18,7 +18,7 @@
   "require": {
     "php": ">=8.0.0",
     "ext-mongodb": "^1.15.0",
-    "dibify/dibify": "^0.9.0",
+    "dibify/dibify": "^0.10.0",
     "mongodb/mongodb": "^1.15",
     "xakepehok/array-wildcard-explainer": "^0.1.0",
     "adbario/php-dot-notation": "^2.2"
