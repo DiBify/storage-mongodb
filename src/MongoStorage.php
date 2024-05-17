@@ -149,11 +149,11 @@ abstract class MongoStorage implements StorageInterface
             $update['$inc'] = $inc;
         }
 
-        $this->log('updateOne', $filter);
-
         if (isset($options['handleFilter']) && is_callable($options['handleFilter'])) {
             $filter = $options['handleFilter']($filter);
         }
+
+        $this->log('updateOne', $filter);
 
         if (isset($options['handleUpdate']) && is_callable($options['handleUpdate'])) {
             $update = $options['handleUpdate']($update);
