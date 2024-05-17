@@ -107,7 +107,11 @@ abstract class MongoStorage implements StorageInterface
         }
 
         $this->log('insertOne', $document->all());
-        $this->getCollection()->insertOne($document->all(), $options);
+        $result = $this->getCollection()->insertOne($document->all(), $options);
+
+        if (isset($options['onInsertResult']) && is_callable($options['onInsertResult'])) {
+            $options['onInsertResult']($result);
+        }
     }
 
     public function update(StorageData $data, array $options = []): void
@@ -146,7 +150,19 @@ abstract class MongoStorage implements StorageInterface
         }
 
         $this->log('updateOne', $filter);
-        $this->getCollection()->updateOne($filter, $update, $options);
+
+        if (isset($options['handleFilter']) && is_callable($options['handleFilter'])) {
+            $filter = $options['handleFilter']($filter);
+        }
+
+        if (isset($options['handleUpdate']) && is_callable($options['handleUpdate'])) {
+            $update = $options['handleUpdate']($update);
+        }
+
+        $result = $this->getCollection()->updateOne($filter, $update, $options);
+        if (isset($options['onUpdateResult']) && is_callable($options['onUpdateResult'])) {
+            $options['onUpdateResult']($result);
+        }
     }
 
     public function delete(string $id, array $options = []): void
@@ -159,8 +175,16 @@ abstract class MongoStorage implements StorageInterface
             ];
         }
 
+        if (isset($options['handleFilter']) && is_callable($options['handleFilter'])) {
+            $filter = $options['handleFilter']($filter);
+        }
+
         $this->log('delete', $filter);
-        $this->getCollection()->deleteOne($filter, $options);
+        $result = $this->getCollection()->deleteOne($filter, $options);
+
+        if (isset($options['onDeleteResult']) && is_callable($options['onDeleteResult'])) {
+            $options['onDeleteResult']($result);
+        }
     }
 
     protected function findOneByFilter(array $filter, array $options = [], bool $withScope = true): ?StorageData
