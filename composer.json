@@ -17,9 +17,9 @@
   "license": "BSD-3-Clause",
   "require": {
     "php": "^8.2",
-    "ext-mongodb": "^1.15.0",
+    "ext-mongodb": "^2.1",
     "dibify/dibify": "^0.11.0",
-    "mongodb/mongodb": ">=1.15",
+    "mongodb/mongodb": "^2.1",
     "xakepehok/array-wildcard-explainer": "^0.1.0",
     "adbario/php-dot-notation": "^2.2"
   },
