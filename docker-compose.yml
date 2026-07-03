@@ -1,0 +1,14 @@
+services:
+  php:
+    build: .
+    volumes:
+      - .:/app
+      - composer-cache:/root/.composer/cache
+    # Install deps (if missing) then run the test suite.
+    # The base test suite needs only ext-mongodb (bundled in the image),
+    # not a running mongod — so there is no mongo service here.
+    command: >
+      sh -c "composer install --no-interaction --prefer-dist && vendor/bin/phpunit"
+
+volumes:
+  composer-cache:

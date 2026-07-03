@@ -1,0 +1,8 @@
+# Keep dev/test infrastructure out of composer dist archives
+/Dockerfile          export-ignore
+/docker-compose.yml  export-ignore
+/phpunit.xml.dist    export-ignore
+/tests               export-ignore
+/.gitattributes      export-ignore
+/.gitignore          export-ignore
+/.idea               export-ignore

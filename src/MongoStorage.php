@@ -297,7 +297,20 @@ abstract class MongoStorage implements StorageInterface
     protected function handleAfterFind(Dot $document): Dot
     {
         foreach ($this->defaults() as $key => $value) {
-            if (!$document->has($key)) {
+            $key = (string)$key;
+
+            // A leading "!" forces the default through a null/scalar/absent parent
+            // (materializing it), bypassing the isDefaultApplicable() guard. The "!"
+            // is stripped from the stored key. An existing value is still never overridden.
+            if (str_starts_with($key, '!')) {
+                $key = mb_substr($key, 1);
+                if (!$document->has($key)) {
+                    $document->set($key, $value);
+                }
+                continue;
+            }
+
+            if ($this->isDefaultApplicable($document, $key)) {
                 $document->set($key, $value);
             }
         }
@@ -393,6 +406,32 @@ abstract class MongoStorage implements StorageInterface
         }
 
         return $handler($document);
+    }
+
+    /**
+     * Decides whether a default may be written for the given key.
+     *
+     * A default is applicable only when the key is missing AND every parent
+     * segment already exists as a non-null array.
+     */
+    private function isDefaultApplicable(Dot $document, string $key): bool
+    {
+        if ($document->has($key)) {
+            return false;
+        }
+
+        $segments = explode('.', $key);
+        array_pop($segments);
+
+        $path = '';
+        foreach ($segments as $segment) {
+            $path = $path === '' ? $segment : "{$path}.{$segment}";
+            if (!$document->has($path) || !is_array($document->get($path))) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     protected function expandReferences(Dot $document): array
