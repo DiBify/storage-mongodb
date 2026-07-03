@@ -18,12 +18,19 @@
   "require": {
     "php": "^8.2",
     "ext-mongodb": "^1.15.0",
+    "ext-mbstring": "*",
     "dibify/dibify": "^0.11.0",
     "mongodb/mongodb": ">=1.15",
     "xakepehok/array-wildcard-explainer": "^0.1.0",
     "adbario/php-dot-notation": "^2.2"
   },
+  "require-dev": {
+    "phpunit/phpunit": "^11.0"
+  },
   "autoload": {
     "psr-4": {"DiBify\\Storage\\MongoDB\\": "src/"}
+  },
+  "autoload-dev": {
+    "psr-4": {"DiBify\\Storage\\MongoDB\\Tests\\": "tests/"}
   }
 }
