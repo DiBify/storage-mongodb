@@ -97,7 +97,7 @@ abstract class MongoStorage implements StorageInterface
         }
 
 
-        $this->handleBeforeWrite($document);
+        $document = $this->handleBeforeWrite($document);
 
         $pools = ArrayWildcardExplainer::explainMany($document->all(), $this->pools());
         foreach ($pools as $key) {
@@ -119,7 +119,7 @@ abstract class MongoStorage implements StorageInterface
         $document = new Dot($data->body);
 
         $inc = [];
-        $this->handleBeforeWrite($document, function (Dot $document) use (&$inc) {
+        $document = $this->handleBeforeWrite($document, function (Dot $document) use (&$inc) {
             $pools = ArrayWildcardExplainer::explainMany($document->all(), $this->pools());
             foreach ($pools as $key) {
                 if (($value = $document->get($key)) !== null) {
