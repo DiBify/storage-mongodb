@@ -241,7 +241,7 @@ abstract class MongoStorage implements StorageInterface
         }
 
         /** @var Cursor $cursor */
-        $cursor = $this->getCollection()->aggregate($pipeline);
+        $cursor = $this->getCollection()->aggregate($pipeline, $options);
         $this->log('aggregate', $pipeline, $options);
         return $cursor;
     }
